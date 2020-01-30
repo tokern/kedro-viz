@@ -14,6 +14,7 @@
 - Add theme prop and icon button visibility prop (#80)
 - Rename `get_data_from_kedro` to `format_pipeline_data` (#72)
 - Add pipeline and catalog arguments to `format_pipeline_data` (#72)
+- **BREAKING CHANGE:**  Kedro<0.15.0 no longer works with this version of Kedro-Viz(#72)
 
 ## Bug fixes and other changes
 
