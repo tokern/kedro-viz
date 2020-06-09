@@ -44,7 +44,7 @@ from typing import Dict, List, Set
 import click
 import kedro
 import requests
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from IPython.core.display import HTML, display
 from semver import VersionInfo
 from toposort import toposort_flatten
@@ -64,6 +64,7 @@ else:
 _VIZ_PROCESSES = {}  # type: Dict[int, multiprocessing.Process]
 
 data = None  # pylint: disable=invalid-name
+global_nodes = None
 
 app = Flask(  # pylint: disable=invalid-name
     __name__, static_folder=str(Path(__file__).parent.absolute() / "html" / "static")
@@ -200,7 +201,9 @@ def _get_pipeline_catalog_from_kedro14(env):
         raise KedroCliError(ERROR_PROJECT_ROOT)
 
 
-def _sort_layers(nodes: Dict[str, Dict], dependencies: Dict[str, Set[str]]) -> List[str]:
+def _sort_layers(
+    nodes: Dict[str, Dict], dependencies: Dict[str, Set[str]]
+) -> List[str]:
     """Given a DAG represented by a dictionary of nodes, some of which have a `layer` attribute,
     along with their dependencies, return the list of all layers sorted according to
     the nodes' topological order, i.e. a layer should appear before another layer in the list
@@ -296,11 +299,15 @@ def _sort_layers(nodes: Dict[str, Dict], dependencies: Dict[str, Set[str]]) -> L
 def _construct_layer_mapping(catalog):
     if hasattr(catalog, "layers"):  # kedro>=0.16.0
         if catalog.layers is None:
-            return {ds_name: None for ds_name in catalog._data_sets}   # pylint: disable=protected-access
+            return {
+                ds_name: None for ds_name in catalog._data_sets
+            }  # pylint: disable=protected-access
 
         dataset_to_layer = {}
         for layer, dataset_names in catalog.layers.items():
-            dataset_to_layer.update({dataset_name: layer for dataset_name in dataset_names})
+            dataset_to_layer.update(
+                {dataset_name: layer for dataset_name in dataset_names}
+            )
     else:
         dataset_to_layer = {
             ds_name: getattr(ds_obj, "_layer", None)
@@ -319,6 +326,7 @@ def format_pipeline_data(pipeline, catalog):
         pipeline: Kedro pipeline object
         catalog:  Kedro catalog object
     """
+    global global_nodes
 
     def pretty_name(name):
         name = name.replace("-", " ").replace("_", " ")
@@ -337,6 +345,9 @@ def format_pipeline_data(pipeline, catalog):
     namespace_tags = defaultdict(set)
     # keep track of {data_set_namespace -> layer it belongs to}
     namespace_to_layer = {}
+
+    node_namespaces = {}
+
     all_tags = set()
 
     dataset_to_layer = _construct_layer_mapping(catalog)
@@ -350,6 +361,9 @@ def format_pipeline_data(pipeline, catalog):
             "name": getattr(node, "short_name", node.name),
             "full_name": getattr(node, "_func_name", str(node)),
             "tags": sorted(node.tags),
+            "inputs": sorted(node.inputs),
+            "outputs": sorted(node.outputs),
+            "namespace": node.namespace if node.namespace else "",
         }
         sorted_nodes.append(nodes[task_id])
 
@@ -387,12 +401,13 @@ def format_pipeline_data(pipeline, catalog):
 
     # sort layers
     sorted_layers = _sort_layers(nodes, node_dependencies)
+    global_nodes = sorted_nodes
 
     return {
         "nodes": sorted_nodes,
         "edges": edges,
         "tags": sorted_tags,
-        "layers": sorted_layers
+        "layers": sorted_layers,
     }
 
 
@@ -400,6 +415,17 @@ def format_pipeline_data(pipeline, catalog):
 def nodes_json():
     """Serve the pipeline data."""
     return jsonify(data)
+
+
+@app.route("/api/nodes/<node_id>")
+def nodes(node_id):
+    """Serve the pipeline data."""
+    global global_nodes
+    for node in global_nodes:
+        if node["id"] == node_id:
+            return jsonify(node)
+    namespace = request.args.get("namespace")
+    return "failure"
 
 
 @click.group(name="Kedro-Viz")
@@ -475,7 +501,7 @@ def _call_viz(
     save_file=None,
     pipeline_name=None,
     env=None,
-    project_path=None
+    project_path=None,
 ):
     global data  # pylint: disable=global-statement,invalid-name
 
@@ -495,7 +521,9 @@ def _call_viz(
 
             try:
                 if project_path is not None:
-                    context = get_project_context("context", project_path=project_path, env=env)
+                    context = get_project_context(
+                        "context", project_path=project_path, env=env
+                    )
                 else:
                     context = get_project_context("context", env=env)
                 pipeline = _get_pipeline_from_context(context, pipeline_name)
