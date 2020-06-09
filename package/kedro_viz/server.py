@@ -169,12 +169,14 @@ def _allocate_port(start_at: int, end_at: int = 65535) -> int:
 
 def _load_from_file(load_file: str) -> dict:
     global data  # pylint: disable=global-statement,invalid-name
+    global global_nodes
     data = json.loads(Path(load_file).read_text())
     for key in ["nodes", "edges", "tags"]:
         if key not in data:
             raise KedroCliError(
                 "Invalid file, top level key '{}' not found.".format(key)
             )
+    global_nodes = data["nodes"]
     return data
 
 
@@ -516,7 +518,6 @@ def _call_viz(
     project_path=None,
 ):
     global data  # pylint: disable=global-statement,invalid-name
-
     if load_file:
         # Remove all handlers for root logger
         root_logger = logging.getLogger()
