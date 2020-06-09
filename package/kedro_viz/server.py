@@ -417,14 +417,26 @@ def nodes_json():
     return jsonify(data)
 
 
+@app.route("/api/nodes")
+def nodes():
+    if "namespace" in request.args:
+        node_namespace = request.args.get("namespace")
+
+        new_nodes = []
+        for node in global_nodes:
+            if node.get("namespace") and node["namespace"] == node_namespace:
+                new_nodes.append(new_nodes)
+        return json.dumps({"nodes": [global_nodes[0]]})
+
+    return "failure"
+
+
 @app.route("/api/nodes/<node_id>")
-def nodes(node_id):
+def node_by_id(node_id):
     """Serve the pipeline data."""
-    global global_nodes
     for node in global_nodes:
         if node["id"] == node_id:
             return jsonify(node)
-    namespace = request.args.get("namespace")
     return "failure"
 
 
