@@ -587,7 +587,6 @@ def _call_viz(
             if pipeline_name:
                 raise KedroCliError(ERROR_PIPELINE_FLAG_NOT_SUPPORTED)
             pipelines, catalog = _get_pipeline_catalog_from_kedro14(env)
-
         data = format_pipelines_data(pipelines, catalog)
 
     if save_file:

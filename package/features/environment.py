@@ -34,15 +34,36 @@ import shutil
 import stat
 import sys
 import tempfile
+import venv
 from pathlib import Path
 
 from features.steps.sh_run import run
-from features.steps.util import create_new_venv
+
+_PATHS_TO_REMOVE = set()  # type: Set[Path]
 
 
 def _should_exclude_scenario(scenario):
     pre_16_scenario = any(key in scenario.name for key in ["0.14", "0.15"])
     return sys.version_info >= (3, 8) and pre_16_scenario
+
+
+def _create_tmp_dir() -> Path:
+    """Create a temp directory and add it to _PATHS_TO_REMOVE"""
+    tmp_dir = Path(tempfile.mkdtemp()).resolve()
+    _PATHS_TO_REMOVE.add(tmp_dir)
+    return tmp_dir
+
+
+def _create_new_venv() -> Path:
+    """Create a new venv.
+
+    Returns:
+        path to created venv
+    """
+    # Create venv
+    venv_dir = _create_tmp_dir()
+    venv.main([str(venv_dir)])
+    return venv_dir
 
 
 def before_scenario(context, scenario):  # pylint: disable=unused-argument
@@ -61,10 +82,7 @@ def before_scenario(context, scenario):  # pylint: disable=unused-argument
         assert res.returncode == 0
 
     # make a venv
-    if "E2E_VENV" in os.environ:
-        context.venv_dir = Path(os.environ["E2E_VENV"])
-    else:
-        context.venv_dir = Path(create_new_venv())
+    context.venv_dir = _create_new_venv()
 
     # note the locations of some useful stuff
     # this is because exe resolution in supbrocess doens't respect a passed env
@@ -91,29 +109,21 @@ def before_scenario(context, scenario):  # pylint: disable=unused-argument
     # from pip-tools due to this bug in pip: https://github.com/pypa/pip/issues/988
     call([context.python, "-m", "pip", "install", "-U", "pip", "pip-tools"])
     pip_compile = str(bin_dir / "pip-compile")
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        compiled_reqs = Path(tmpdirname) / "compiled_requirements.txt"
-        call([pip_compile, "--output-file", str(compiled_reqs), "requirements.txt"])
-        call([context.pip, "install", "-r", str(compiled_reqs)])
+    tmpdirname = _create_tmp_dir()
 
-    for wheel_path in glob.glob("dist/*.whl"):
-        os.remove(wheel_path)
-    call([context.python, "setup.py", "clean", "--all", "bdist_wheel"])
+    compiled_reqs = tmpdirname / "compiled_requirements.txt"
+    call([pip_compile, "--output-file", str(compiled_reqs), "requirements.txt"])
+    call([context.pip, "install", "-r", str(compiled_reqs)])
 
-    call([context.pip, "install", "-U"] + glob.glob("dist/*.whl"))
+    # for wheel_path in glob.glob("dist/*.whl"):
+    #     os.remove(wheel_path)
+    # call([context.python, "setup.py", "clean", "--all", "bdist_wheel"])
+
+    call([context.pip, "install", "-U", "."])
     context.temp_dir = Path(tempfile.mkdtemp())
 
 
-def after_scenario(context, scenario):
-    # pylint: disable=unused-argument
-    rmtree(str(context.temp_dir))
-    if "E2E_VENV" not in os.environ:
-        rmtree(str(context.venv_dir))
-
-
-def rmtree(top):
-    if os.name != "posix":
-        for root, _, files in os.walk(top, topdown=False):
-            for name in files:
-                os.chmod(os.path.join(root, name), stat.S_IWUSR)
-    shutil.rmtree(top)
+def after_all(context):
+    for path in _PATHS_TO_REMOVE:
+        # ignore errors when attempting to remove already removed directories
+        shutil.rmtree(path, ignore_errors=True)
