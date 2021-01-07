@@ -1,8 +1,13 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import $ from 'cheerio';
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
-import FlowChart, { mapStateToProps, mapDispatchToProps } from './index';
+import FlowChart, {
+  FlowChart as UnconnectedFlowChart,
+  mapStateToProps,
+  mapDispatchToProps
+} from './index';
 import { mockState, setup } from '../../utils/state.mock';
 
 const getNodeIDs = state => state.node.ids;
@@ -189,21 +194,27 @@ describe('FlowChart', () => {
       type: 'UPDATE_ZOOM'
     });
   });
+});
 
-  it('will not perform zoom operations for Infinity zoom values', () => {
-    const dispatch = jest.fn();
+describe('on zoom events', () => {
+  const onUpdateZoom = jest.fn();
+  const element = document.createElement('div');
+  ReactDOM.render(
+    <UnconnectedFlowChart onUpdateZoom={onUpdateZoom} />,
+    element
+  );
 
-    const zoom = { scale: 1, x: Infinity, y: Infinity };
-    mapDispatchToProps(dispatch).onUpdateZoom(zoom);
-    expect(dispatch.mock.calls.length).toEqual(1);
+  afterAll(() => {
+    document.body.removeChild(element);
   });
 
-  it('will not perform zoom operations for NaN zoom values', () => {
-    const dispatch = jest.fn();
+  // approach 1: end to end user approach using react dom render to extract D3 element
+  it('updates zoom values on scroll', () => {
+    element
+      .querySelector('#pipeline-graph')
+      .dispatchEvent(new Event('wheel.zoom'));
 
-    const zoom = { scale: 1, x: NaN, y: NaN };
-    mapDispatchToProps(dispatch).onUpdateZoom(zoom);
-    expect(dispatch.mock.calls.length).toEqual(1);
+    expect(onUpdateZoom).toHaveBeenCalled();
   });
 });
 
