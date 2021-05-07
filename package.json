@@ -1,12 +1,12 @@
 {
-  "name": "@quantumblack/kedro-viz",
-  "version": "3.11.0",
+  "name": "@tokern/lineage_viz",
+  "version": "0.1.0",
   "main": "lib/components/app/index.js",
   "files": [
     "lib"
   ],
   "homepage": ".",
-  "proxy": "http://localhost:4142/",
+  "proxy": "http://localhost:8000/",
   "scripts": {
     "build": "npm run build:css && react-scripts build",
     "build:css": "node-sass src/ -o src/",
