@@ -129,43 +129,6 @@ const MetaData = ({
                 value={metadata.pipeline}
               />
               <MetaDataRow
-                label="Run Command:"
-                visible={Boolean(metadata.runCommand)}>
-                <div className="pipeline-metadata__toolbox-container">
-                  <MetaDataValue
-                    container={'code'}
-                    className={modifiers(
-                      'pipeline-metadata__run-command-value',
-                      {
-                        visible: !showCopied,
-                      }
-                    )}
-                    value={metadata.runCommand}
-                  />
-                  {window.navigator.clipboard && (
-                    <>
-                      <span
-                        className={modifiers(
-                          'pipeline-metadata__copy-message',
-                          {
-                            visible: showCopied,
-                          }
-                        )}>
-                        Copied to clipboard.
-                      </span>
-                      <ul className="pipeline-metadata__toolbox">
-                        <IconButton
-                          ariaLabel="Copy run command to clipboard."
-                          className="pipeline-metadata__copy-button"
-                          icon={CopyIcon}
-                          onClick={onCopyClick}
-                        />
-                      </ul>
-                    </>
-                  )}
-                </div>
-              </MetaDataRow>
-              <MetaDataRow
                 label="Description (docstring):"
                 visible={isTaskNode}
                 value={metadata.docstring}

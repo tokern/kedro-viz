@@ -114,27 +114,6 @@ describe('MetaData', () => {
       const row = rowByLabel(wrapper, 'Pipeline:');
       expect(textOf(rowValue(row))).toEqual(['Default']);
     });
-
-    it('shows the node run command', () => {
-      const wrapper = mount({ nodeId: salmonTaskNodeId });
-      const row = rowByLabel(wrapper, 'Run Command:');
-      expect(textOf(rowValue(row))).toEqual(['kedro run --to-nodes salmon']);
-    });
-
-    it('copies run command when button clicked', () => {
-      window.navigator.clipboard = {
-        writeText: jest.fn(),
-      };
-
-      const wrapper = mount({ nodeId: salmonTaskNodeId });
-      const copyButton = wrapper.find('button.pipeline-metadata__copy-button');
-
-      copyButton.simulate('click');
-
-      expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'kedro run --to-nodes salmon'
-      );
-    });
   });
 
   describe('Dataset nodes', () => {
@@ -178,27 +157,6 @@ describe('MetaData', () => {
       const wrapper = mount({ nodeId: catDatasetNodeId });
       const row = rowByLabel(wrapper, 'Pipeline:');
       expect(textOf(rowValue(row))).toEqual(['Default']);
-    });
-
-    it('shows the node run command', () => {
-      const wrapper = mount({ nodeId: catDatasetNodeId });
-      const row = rowByLabel(wrapper, 'Run Command:');
-      expect(textOf(rowValue(row))).toEqual(['kedro run --to-inputs cat']);
-    });
-
-    it('copies run command when button clicked', () => {
-      window.navigator.clipboard = {
-        writeText: jest.fn(),
-      };
-
-      const wrapper = mount({ nodeId: catDatasetNodeId });
-      const copyButton = wrapper.find('button.pipeline-metadata__copy-button');
-
-      copyButton.simulate('click');
-
-      expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'kedro run --to-inputs cat'
-      );
     });
   });
 
