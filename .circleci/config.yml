@@ -1,8 +1,7 @@
 version: 2.1
 
 orbs:
-  win: circleci/windows@2.4.0
-
+  codecov: codecov/codecov@1.0.5
 executors:
   circleci_machine:
     docker:
@@ -10,48 +9,11 @@ executors:
     working_directory: ~/repo
 
 commands:
-  setup_python_env:
-    description: Setup Python environment
-    steps:
-      - run:
-          name: Install python3
-          command: |
-            sudo apt update
-            sudo apt install python3 python3-pip
-      - run:
-          name: Install Python environment
-          command: |
-            # Get rid of pyenv stuff
-            sudo rm -rf .pyenv/ /opt/circleci/.pyenv/
-            # Download and install miniconda
-            curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  > miniconda.sh
-            bash miniconda.sh -b -p $HOME/miniconda
-            # Create an anaconda virtualenv for python ${CONDA_ENV_PY_VERSION} and make that the default python interpreter
-            echo ". /home/circleci/miniconda/etc/profile.d/conda.sh" >> $BASH_ENV
-            echo "conda deactivate; conda activate kedro-viz" >> $BASH_ENV
-            . /home/circleci/miniconda/etc/profile.d/conda.sh
-            conda create --name kedro-viz python=${CONDA_ENV_PY_VERSION} -y
-            source $BASH_ENV
-      - run:
-          name: Install Kedro-Viz dependencies
-          command: |
-            python -m pip install -U pip setuptools wheel
-            pip install git+https://github.com/quantumblacklabs/kedro@master
-            cd package && pip install -r requirements.txt -U
-            pip install -r test_requirements.txt -U
-            cd ..
-      - run:
-          name: Echo package versions
-          command: |
-            python -V
-            pip -V
-            kedro -V
-
   install_node_dependencies:
     steps:
       - run:
           name: Install Node dependencies
-          command: node tools/ci.js
+          command: npm ci
 
   test_lib_transpilation:
     steps:
@@ -80,12 +42,6 @@ commands:
           name: Run JavaScript tests
           command: npm run build:css && npm run test:ci
 
-  run_pylint_and_flake8:
-    steps:
-      - run:
-          name: Run pylint and flake8
-          command: make pylint
-
   run_secret_scan:
     steps:
       - run:
@@ -98,18 +54,6 @@ commands:
           name: Run security scan
           command: make security-scan
 
-  run_python_tests:
-    steps:
-      - run:
-          name: Run Python tests
-          command: make pytest
-
-  run_e2e_tests:
-    steps:
-      - run:
-          name: Run all end to end tests
-          command: make e2e-tests
-
   cleanup:
     steps:
       - run:
@@ -121,18 +65,6 @@ commands:
       - run:
           name: Build application
           command: npm run build
-
-  package_app:
-    steps:
-      - run:
-          name: Package app
-          command: make package
-
-  check_legal_compliance:
-    steps:
-      - run:
-          name: Check for legal compliance
-          command: make legal
 
   deploy_gh_pages:
     steps:
@@ -169,158 +101,46 @@ commands:
             - v${CACHE_VERSION}-dependencies-{{ checksum "package.json" }}
             # fallback to using the latest cache if no exact match is found
             - v${CACHE_VERSION}-dependencies-
-      - setup_python_env
       - install_node_dependencies
       - test_lib_transpilation
       - test_lib_import
       - run_eslint
       - run_javascript_tests
-      - run_pylint_and_flake8
       - run_secret_scan
       - run_security_scan
-      - run_python_tests
-      - run_e2e_tests
       - cleanup
       - save_cache:
           paths:
             - node_modules
           key: v${CACHE_VERSION}-dependencies-{{ checksum "package.json" }}
       - build_application
-      - package_app
-      - check_legal_compliance
-
-  # Windows-related commands
-  win_setup_conda:
-    # Miniconda3 is pre-installed on the machine:
-    # https://circleci.com/docs/2.0/hello-world-windows/
-    description: Setup conda
-    steps:
-      - run:
-          name: Initialize conda
-          command: conda init powershell
-      - run:
-          name: Create 'kedro-viz' conda environment
-          command: |
-            conda create --name kedro-viz python=$env:CONDA_ENV_PY_VERSION -y
-
-  win_setup_requirements:
-    description: Install Kedro-Viz dependencies
-    steps:
-      - run:
-          name: Install Kedro-Viz dependencies
-          command: |
-            conda activate kedro-viz
-            python -m pip install -U pip setuptools wheel
-            pip install git+https://github.com/quantumblacklabs/kedro@master
-            pip install -r package/test_requirements.txt -U
-      - run:
-          name: Echo package versions
-          command: |
-            conda activate kedro-viz
-            python -V
-            pip -V
-            kedro -V
-
-  win_build:
-    description: Run build on Windows
-    steps:
-      - checkout
-      - win_setup_conda
-      - win_setup_requirements
-      - install_node_dependencies
-      - run:
-          name: Run Python unit tests
-          command: |
-            conda activate kedro-viz
-            rm -r build, package/dist, package/kedro_viz/html, pip-wheel-metadata, package/kedro_viz.egg-info -ErrorAction Ignore
-            npm run build
-            cp -R build package/kedro_viz/html
-            pytest package/tests --no-cov
-      - run:
-          name: Run e2e tests
-          command: |
-            conda activate kedro-viz
-            cd package
-            behave
 
 jobs:
-  build_36:
+  build:
     executor: circleci_machine
-    environment:
-      CONDA_ENV_PY_VERSION: "3.6"
-    steps: [build]
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v${CACHE_VERSION}-dependencies-{{ checksum "package.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v${CACHE_VERSION}-dependencies-
+      - install_node_dependencies
+      - test_lib_transpilation
+      - test_lib_import
+      - run_eslint
+      - run_javascript_tests
+#      - run_secret_scan
+#      - run_security_scan
+      - cleanup
+      - save_cache:
+          paths:
+            - node_modules
+          key: v${CACHE_VERSION}-dependencies-{{ checksum "package.json" }}
 
-  build_37:
-    executor: circleci_machine
-    environment:
-      CONDA_ENV_PY_VERSION: "3.7"
-    steps: [build]
-
-  build_38:
-    executor: circleci_machine
-    environment:
-      CONDA_ENV_PY_VERSION: "3.8"
-    steps: [build]
-
-  deploy_demo:
-    executor: circleci_machine
-    steps: [deploy_gh_pages]
-
-  # Windows-related jobs
-  win_build_36:
-    executor: win/default
-    working_directory: ~/repo
-    environment:
-      CONDA_ENV_PY_VERSION: "3.6"
-    steps: [win_build]
-
-  win_build_37:
-    executor: win/default
-    working_directory: ~/repo
-    environment:
-      CONDA_ENV_PY_VERSION: "3.7"
-    steps: [win_build]
-
-  win_build_38:
-    executor: win/default
-    working_directory: ~/repo
-    environment:
-      CONDA_ENV_PY_VERSION: "3.8"
-    steps: [win_build]
 
 workflows:
   version: 2
   build:
     jobs:
-      # - build_36
-      # - build_37
-      - build_38
-      # - win_build_36
-      # - win_build_37
-      - win_build_38
-      - deploy_demo:
-          requires:
-            # - build_36
-            # - build_37
-            - build_38
-            # - win_build_36
-            # - win_build_37
-            - win_build_38
-          filters:
-            branches:
-              only: demo
-  daily:
-    triggers:
-      - schedule:
-          cron: "0 1 * * *"
-          filters:
-            branches:
-              only:
-                - main
-    jobs:
-      # - build_36
-      # - build_37
-      - build_38
-      # - win_build_36
-      # - win_build_37
-      - win_build_38
+      - build
