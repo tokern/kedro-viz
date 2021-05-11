@@ -1,6 +1,7 @@
 {
   "name": "@tokern/lineage_viz",
-  "version": "0.1.0",
+  "version": "3.11.0",
+  "tokern_version": "0.2.0",
   "main": "lib/components/app/index.js",
   "files": [
     "lib"
