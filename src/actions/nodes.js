@@ -83,7 +83,9 @@ export function loadNodeData(nodeID) {
       dispatch(toggleNodeDataLoading(true));
       const url = getUrl('nodes', nodeID);
       const nodeData = await loadJsonData(url);
-      dispatch(addNodeMetadata({ id: nodeID, data: nodeData }));
+      dispatch(
+        addNodeMetadata({ id: nodeID, data: nodeData['data']['attributes'] })
+      );
       dispatch(toggleNodeDataLoading(false));
     }
   };

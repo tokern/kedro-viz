@@ -10,7 +10,11 @@ import { getUrl } from '../utils';
  * @return {function} A promise that will return when the file is loaded and parsed
  */
 const loadJsonData = (path = getUrl('main'), fallback = {}) =>
-  json(path).catch(() => {
+  json(path, {
+    headers: {
+      Accept: 'application/vnd.api+json',
+    },
+  }).catch(() => {
     const fullPath = `/public${path.substr(1)}`;
 
     // For main route throw a user error

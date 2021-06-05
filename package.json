@@ -1,13 +1,13 @@
 {
   "name": "@tokern/lineage_viz",
   "version": "3.11.0",
-  "tokern_version": "0.2.3",
+  "tokern_version": "0.2.4",
   "main": "lib/components/app/index.js",
   "files": [
     "lib"
   ],
   "homepage": ".",
-  "proxy": "http://localhost:8000/",
+  "proxy": "http://localhost:5000/",
   "scripts": {
     "build": "npm run build:css && react-scripts build",
     "build:css": "node-sass src/ -o src/",

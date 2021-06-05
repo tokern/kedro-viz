@@ -33,7 +33,12 @@ export const getUrl = (type, id) => {
       if (!id) {
         throw new Error('No node ID provided');
       }
-      return [pathRoot, 'nodes', id].join('/');
+      const splitted = id.split(':');
+      if (splitted[0] === 'column') {
+        return [pathRoot, 'v1', 'catalog', 'columns', splitted[1]].join('/');
+      } else {
+        return [pathRoot, 'v1', 'catalog', 'jobs', splitted[1]].join('/');
+      }
     default:
       throw new Error('Unknown URL type');
   }
